@@ -2,8 +2,19 @@
 
 ## Настройка VPS
 
-1. **Установите Docker и Docker Compose** на сервер
-2. **Создайте директорию проекта:**
+1. **Установите Docker:**
+   ```bash
+   curl -fsSL https://get.docker.com -o get-docker.sh
+   sh get-docker.sh
+   ```
+
+2. **Установите Docker Compose (если нужно):**
+   ```bash
+   sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+   sudo chmod +x /usr/local/bin/docker-compose
+   ```
+
+3. **Создайте директорию проекта:**
    ```bash
    mkdir -p /opt/bot && cd /opt/bot
    ```
