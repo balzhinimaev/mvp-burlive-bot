@@ -16,6 +16,7 @@
    MINI_APP_URL=https://burlive.ru/webapp
    LOG_CHANNEL_ID=-1002281903962
    WEBHOOK_URL=https://your-domain.com
+   PORT=8080
    ```
 4. **Скопируйте docker-compose.yml** из репозитория
 

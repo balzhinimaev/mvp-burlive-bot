@@ -33,7 +33,7 @@ export const config: Config = {
   API_BASE_URL: getEnvVar('API_BASE_URL', 'https://burlive.ru/api/v2'),
   MINI_APP_STARTAPP_ENABLED: getEnvBoolean('MINI_APP_STARTAPP_ENABLED', true),
   MINI_APP_URL: getEnvVar('MINI_APP_URL', 'https://your-mini-app-domain.com'),
-  PORT: getEnvNumber('PORT', 3000),
+  PORT: getEnvNumber('PORT', 8080),
   WEBHOOK_PATH: getEnvVar('WEBHOOK_PATH', '/webhook'),
   LOG_LEVEL: (getEnvVar('LOG_LEVEL', 'info') as Config['LOG_LEVEL']),
   SENTRY_DSN: process.env.SENTRY_DSN,

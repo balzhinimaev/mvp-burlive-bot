@@ -45,7 +45,7 @@ MINI_APP_STARTAPP_ENABLED=true
 MINI_APP_URL=https://your-mini-app-domain.com
 
 # Server Configuration
-PORT=3000
+PORT=8080
 WEBHOOK_PATH=/webhook
 
 # Production only: Webhook URL for production deployment
