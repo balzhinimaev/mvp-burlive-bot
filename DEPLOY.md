@@ -18,7 +18,8 @@
    ```bash
    mkdir -p /opt/bot && cd /opt/bot
    ```
-3. **Создайте файл `.env`** с настройками:
+
+4. **Создайте файл `.env`** с настройками:
    ```env
    GITHUB_REPOSITORY=username/buryat-telegram-bot
    BOT_TOKEN=your_bot_token
@@ -29,7 +30,8 @@
    WEBHOOK_URL=https://your-domain.com
    PORT=8080
    ```
-4. **Скопируйте docker-compose.yml** из репозитория
+
+5. **Скопируйте docker-compose.yml** из репозитория
 
 ## Настройка GitHub Secrets
 
