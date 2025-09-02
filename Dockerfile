@@ -22,6 +22,6 @@ RUN addgroup -g 1001 -S nodejs && adduser -S bot -u 1001 -G nodejs
 RUN chown -R bot:nodejs /app
 USER bot
 
-EXPOSE 8080
+# PORT will be set from environment variable
 
 CMD ["node", "dist/index.js"]

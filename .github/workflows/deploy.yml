@@ -52,8 +52,9 @@ jobs:
                 - .env
               environment:
                 - NODE_ENV=production
+                - PORT=${{ secrets.BOT_PORT }}
               ports:
-                - "8080:8080"
+                - "${{ secrets.BOT_PORT }}:${{ secrets.BOT_PORT }}"
               logging:
                 driver: json-file
                 options:

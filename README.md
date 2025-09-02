@@ -44,8 +44,8 @@ API_BASE_URL=https://burlive.ru/api/v2
 MINI_APP_STARTAPP_ENABLED=true
 MINI_APP_URL=https://your-mini-app-domain.com
 
-# Server Configuration
-PORT=8080
+# Server Configuration (REQUIRED)
+PORT=your_port_here
 WEBHOOK_PATH=/webhook
 
 # Production only: Webhook URL for production deployment
@@ -56,7 +56,7 @@ LOG_LEVEL=info
 
 # Channel Logging Configuration
 LOG_CHANNEL_ENABLED=true
-LOG_CHANNEL_ID=-1001234567890
+LOG_CHANNEL_ID=your_channel_id_here
 
 # Optional: Error Tracking
 # SENTRY_DSN=your_sentry_dsn_here
@@ -173,7 +173,7 @@ npm run dev  # Long polling
 4. **Установите переменные окружения:**
    ```env
    LOG_CHANNEL_ENABLED=true
-   LOG_CHANNEL_ID=-1001234567890  # или @your_channel_username
+   LOG_CHANNEL_ID=your_channel_id  # или @your_channel_username
    ```
 
 ### Что логируется
@@ -194,7 +194,7 @@ npm run dev  # Long polling
 👤 Пользователь: Иван Иванов (@ivan_user)
 🆔 ID: 123456789
 📊 UTM: source: vk, campaign: launch
-🎫 Промо: BURI79
+🎫 Промо: PROMO123
 🕒 Время: 03.09.2025, 15:30 (МСК)
 ```
 

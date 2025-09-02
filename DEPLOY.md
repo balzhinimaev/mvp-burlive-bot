@@ -19,19 +19,47 @@
    mkdir -p /opt/bot && cd /opt/bot
    ```
 
-4. **Создайте файл `.env`** с настройками:
+4. **Создайте файл `.env`** с вашими настройками:
    ```env
-   GITHUB_REPOSITORY=username/buryat-telegram-bot
-   BOT_TOKEN=your_bot_token
+   # Обязательные параметры
+   GITHUB_REPOSITORY=your-username/your-repo-name
+   BOT_TOKEN=your_bot_token_here
    BOT_USERNAME=your_bot_username
-   API_BASE_URL=https://burlive.ru/api/v2
-   MINI_APP_URL=https://burlive.ru/webapp
-   LOG_CHANNEL_ID=-1002281903962
-   WEBHOOK_URL=https://your-domain.com
    PORT=8080
+
+   # Опциональные параметры  
+   API_BASE_URL=https://your-api-domain.com/api/v2
+   MINI_APP_URL=https://your-mini-app-domain.com/webapp
+   LOG_CHANNEL_ID=your_channel_id
+   WEBHOOK_URL=https://your-domain.com/bot-webhook
    ```
 
 ✅ **docker-compose.yml создается автоматически при деплое**
+
+## Настройка Nginx
+
+Добавьте в ваш Nginx конфиг роут для webhook'а бота:
+
+```nginx
+# Webhook для Telegram бота
+location /bot-webhook/ {
+    proxy_pass http://127.0.0.1:YOUR_PORT_FROM_ENV/;  # Замените на ваш порт из .env
+    proxy_http_version 1.1;
+
+    proxy_set_header Host $host;
+    proxy_set_header X-Forwarded-For $remote_addr;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-Proto $scheme;
+
+    proxy_read_timeout 30s;
+    proxy_connect_timeout 5s;
+}
+```
+
+После изменений перезагрузите Nginx:
+```bash
+nginx -t && systemctl reload nginx
+```
 
 ## Настройка GitHub Secrets
 
@@ -39,6 +67,9 @@
 - `VPS_HOST` - IP адрес VPS
 - `VPS_USER` - пользователь SSH (root/ubuntu)  
 - `VPS_SSH_KEY` - приватный SSH ключ
+- `BOT_PORT` - **порт для бота (тот же что в .env файле)**
+
+⚠️ **Важно:** Убедитесь что `BOT_PORT` в GitHub Secrets совпадает с `PORT` в `.env` файле на VPS!
 
 ## Деплой
 
