@@ -41,9 +41,8 @@ jobs:
         script: |
           mkdir -p /opt/bot && cd /opt/bot
           
-          # Создаем docker-compose.yml если его нет
-          if [ ! -f docker-compose.yml ]; then
-            cat > docker-compose.yml << EOF
+          # Всегда пересоздаем docker-compose.yml для актуальности
+          cat > docker-compose.yml << EOF
           services:
             bot:
               image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
@@ -61,7 +60,6 @@ jobs:
                   max-size: "10m"
                   max-file: "3"
           EOF
-          fi
           
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
