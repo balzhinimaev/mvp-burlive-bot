@@ -31,7 +31,7 @@
    PORT=8080
    ```
 
-5. **Скопируйте docker-compose.yml** из репозитория
+✅ **docker-compose.yml создается автоматически при деплое**
 
 ## Настройка GitHub Secrets
 
@@ -48,11 +48,11 @@ Push в ветку `main` автоматически запустит депло
 
 ```bash
 # Логи
-docker-compose logs -f
+docker compose logs -f
 
 # Перезапуск
-docker-compose restart
+docker compose restart
 
 # Обновление
-docker-compose pull && docker-compose up -d
+docker compose pull && docker compose up -d
 ```

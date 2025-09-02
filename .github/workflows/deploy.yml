@@ -43,11 +43,10 @@ jobs:
           
           # Создаем docker-compose.yml если его нет
           if [ ! -f docker-compose.yml ]; then
-            cat > docker-compose.yml << 'EOF'
-          version: '3.8'
+            cat > docker-compose.yml << EOF
           services:
             bot:
-              image: ghcr.io/${GITHUB_REPOSITORY}:latest
+              image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
               container_name: buryat-bot
               restart: unless-stopped
               env_file:
@@ -66,6 +65,6 @@ jobs:
           
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-          docker compose down || docker-compose down || true
-          docker compose up -d || docker-compose up -d
+          docker compose down || true
+          docker compose up -d
           docker system prune -f
