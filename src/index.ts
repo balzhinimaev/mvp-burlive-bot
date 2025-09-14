@@ -121,6 +121,12 @@ bot.start(async (ctx: BotContext) => {
       `Изучайте бурятский с помощью мини-уроков, озвучки и транслитерации. ` +
       `20 фраз за 7 дней — первый урок бесплатно!`;
 
+    // Log the exact keyboard payload before sending to help diagnose BUTTON_URL_INVALID
+    logger.info('Sending welcome message with keyboard', {
+      userId,
+      keyboardPreview: JSON.stringify(keyboard).substring(0, 1000),
+    });
+
     await ctx.reply(welcomeMessage, {
       reply_markup: keyboard,
     });
@@ -140,17 +146,25 @@ bot.start(async (ctx: BotContext) => {
     });
     
     // Отправляем базовое сообщение даже при ошибке
+    // Log the fallback keyboard before sending
+    const fallbackKeyboard = {
+      inline_keyboard: [[
+        {
+          text: '🚀 Открыть приложение',
+          web_app: { url: config.MINI_APP_URL }
+        }
+      ]]
+    };
+
+    logger.info('Sending fallback welcome message with keyboard', {
+      userId,
+      keyboardPreview: JSON.stringify(fallbackKeyboard).substring(0, 1000),
+    });
+
     await ctx.reply(
       '🇲🇳 Добро пожаловать! Произошла техническая ошибка, но вы можете открыть приложение:',
       {
-        reply_markup: {
-          inline_keyboard: [[
-            {
-              text: '🚀 Открыть приложение',
-              web_app: { url: config.MINI_APP_URL }
-            }
-          ]]
-        }
+        reply_markup: fallbackKeyboard,
       }
     );
   }
