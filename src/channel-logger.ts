@@ -274,8 +274,19 @@ export class ChannelLogger {
    * Логирование создания платежа (когда пользователь нажал на тариф)
    */
   async logPaymentCreation(paymentCreationLog: PaymentCreationLog): Promise<void> {
+    logger.info('Attempting to log payment creation', {
+      isEnabled: this.isLoggerEnabled(),
+      channelId: this.channelId,
+      userId: paymentCreationLog.userId,
+      paymentId: paymentCreationLog.paymentId,
+    });
+
     if (!this.isLoggerEnabled()) {
-      logger.debug('Channel logging disabled, skipping payment creation log');
+      logger.warn('Channel logging disabled, skipping payment creation log', {
+        isEnabled: this.isEnabled,
+        channelId: this.channelId,
+        logChannelEnabled: config.LOG_CHANNEL_ENABLED,
+      });
       return;
     }
 
@@ -335,16 +346,18 @@ export class ChannelLogger {
 📊 <b>UTM:</b> ${utmText}${promoText}
 ⏰ <b>Время:</b> ${timestampText} (МСК)`;
 
-      await this.bot.telegram.sendMessage(this.channelId!, message, {
+      const result = await this.bot.telegram.sendMessage(this.channelId!, message, {
         parse_mode: 'HTML',
         disable_web_page_preview: true,
       });
 
-      logger.info('Payment creation logged to channel', {
+      logger.info('Payment creation logged to channel successfully', {
         userId,
         paymentId,
         amount,
         tariffName,
+        messageId: result.message_id,
+        channelId: this.channelId,
       });
 
     } catch (error: any) {
