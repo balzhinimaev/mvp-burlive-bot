@@ -1,5 +1,5 @@
 import { config } from './config';
-import { UserStartLog, PaymentLog, UTMParams } from './types';
+import { UserStartLog, PaymentLog, PaymentCreationLog, UTMParams } from './types';
 import { logger } from './utils';
 
 // Используем any для упрощения типизации телеграм бота
@@ -100,7 +100,7 @@ export class ChannelLogger {
       minute: '2-digit',
     });
 
-    return `${statusEmoji} <b>${statusText}</b>
+    return `${statusEmoji} <b>${statusText}</b> #user_start #new_user
 
 👤 <b>Пользователь:</b> ${displayName} (${usernameText})
 🆔 <b>ID:</b> <code>${userId}</code>
@@ -237,7 +237,7 @@ export class ChannelLogger {
       minute: '2-digit',
     });
 
-    return `💰 <b>Новый платеж</b>
+    return `💰 <b>Новый платеж</b> #payment_success #completed_payment
 
 👤 <b>Пользователь:</b> ${displayName} (${usernameText})
 🆔 <b>ID:</b> <code>${userId}</code>
@@ -267,6 +267,93 @@ export class ChannelLogger {
       return `${minutes}м ${seconds % 60}с`;
     } else {
       return `${seconds}с`;
+    }
+  }
+
+  /**
+   * Логирование создания платежа (когда пользователь нажал на тариф)
+   */
+  async logPaymentCreation(paymentCreationLog: PaymentCreationLog): Promise<void> {
+    if (!this.isLoggerEnabled()) {
+      logger.debug('Channel logging disabled, skipping payment creation log');
+      return;
+    }
+
+    try {
+      const {
+        userId,
+        username,
+        firstName,
+        lastName,
+        paymentId,
+        amount,
+        currency,
+        tariffName,
+        timestamp,
+        utm,
+        promoId,
+      } = paymentCreationLog;
+
+      // Форматирование имени пользователя
+      const userInfo = [];
+      if (firstName) userInfo.push(firstName);
+      if (lastName) userInfo.push(lastName);
+      const displayName = userInfo.length > 0 ? userInfo.join(' ') : 'Без имени';
+      const usernameText = username ? `@${username}` : 'без username';
+      
+      // Форматирование UTM параметров
+      const utmParts = [];
+      if (utm?.utm_source) utmParts.push(`source: ${utm.utm_source}`);
+      if (utm?.utm_campaign) utmParts.push(`campaign: ${utm.utm_campaign}`);
+      if (utm?.utm_medium) utmParts.push(`medium: ${utm.utm_medium}`);
+      if (utm?.utm_term) utmParts.push(`term: ${utm.utm_term}`);
+      if (utm?.utm_content) utmParts.push(`content: ${utm.utm_content}`);
+      
+      const utmText = utmParts.length > 0 ? utmParts.join(', ') : 'без UTM';
+      const promoText = promoId ? `\n🎫 <b>Промо:</b> ${promoId}` : '';
+      const tariffText = tariffName ? `\n📦 <b>Тариф:</b> ${tariffName}` : '';
+      
+      // Форматирование времени
+      const timestampText = timestamp.toLocaleString('ru-RU', {
+        timeZone: 'Europe/Moscow',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+
+      // Форматирование суммы
+      const amountText = `${amount} ${currency}`;
+
+      const message = `🛒 <b>Создание платежа</b> #payment_creation #new_payment
+
+👤 <b>Пользователь:</b> ${displayName} (${usernameText})
+🆔 <b>ID:</b> ${userId}
+💳 <b>Платеж:</b> ${paymentId}
+💰 <b>Сумма:</b> ${amountText}${tariffText}
+📊 <b>UTM:</b> ${utmText}${promoText}
+⏰ <b>Время:</b> ${timestampText} (МСК)`;
+
+      await this.bot.telegram.sendMessage(this.channelId!, message, {
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+      });
+
+      logger.info('Payment creation logged to channel', {
+        userId,
+        paymentId,
+        amount,
+        tariffName,
+      });
+
+    } catch (error: any) {
+      logger.error('Failed to log payment creation to channel', {
+        userId: paymentCreationLog.userId,
+        paymentId: paymentCreationLog.paymentId,
+        error: error.message,
+      });
+      throw error;
     }
   }
 

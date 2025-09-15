@@ -3,7 +3,7 @@ import express from 'express';
 import { config } from './config';
 import { ApiService } from './api';
 import { parsePayload, createStartAppParam, createMiniAppLink, hasValidUtm, logger } from './utils';
-import { LeadData, UserStartLog, PaymentLog, PaymentLogRequest } from './types';
+import { LeadData, UserStartLog, PaymentLog, PaymentLogRequest, PaymentCreationLog, PaymentCreationLogRequest } from './types';
 import { ChannelLogger } from './channel-logger';
 import { authenticateApiKey, requirePaymentLogging } from './auth-middleware';
 
@@ -117,6 +117,74 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
     paymentLoggingEnabled: config.PAYMENT_LOG_ENABLED,
   });
+});
+
+// Эндпоинт для логирования создания платежа (когда пользователь нажал на тариф)
+app.post('/api/payment-creation-log', authenticateApiKey, requirePaymentLogging, async (req, res) => {
+  try {
+    const paymentCreationData: PaymentCreationLogRequest = req.body;
+    
+    // Валидация обязательных полей
+    if (!paymentCreationData.userId || !paymentCreationData.paymentId || !paymentCreationData.amount || !paymentCreationData.currency) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: userId, paymentId, amount, currency'
+      });
+    }
+
+    // Создание объекта для логирования
+    const paymentCreationLog: PaymentCreationLog = {
+      userId: paymentCreationData.userId,
+      username: paymentCreationData.username,
+      firstName: paymentCreationData.firstName,
+      lastName: paymentCreationData.lastName,
+      paymentId: paymentCreationData.paymentId,
+      amount: paymentCreationData.amount,
+      currency: paymentCreationData.currency,
+      tariffName: paymentCreationData.tariffName,
+      timestamp: new Date(),
+      utm: paymentCreationData.utm,
+      promoId: paymentCreationData.promoId,
+    };
+    
+    // Асинхронно отправляем лог в канал
+    channelLogger.logPaymentCreation(paymentCreationLog).catch((error: any) => {
+      logger.error('Failed to log payment creation to channel', { 
+        userId: paymentCreationData.userId, 
+        paymentId: paymentCreationData.paymentId,
+        error: error.message 
+      });
+    });
+
+    logger.info('Payment creation log request processed', {
+      userId: paymentCreationData.userId,
+      paymentId: paymentCreationData.paymentId,
+      amount: paymentCreationData.amount,
+      tariffName: paymentCreationData.tariffName,
+    });
+
+    return res.json({
+      success: true,
+      message: 'Payment creation logged successfully',
+      data: {
+        userId: paymentCreationData.userId,
+        paymentId: paymentCreationData.paymentId,
+        amount: paymentCreationData.amount,
+        tariffName: paymentCreationData.tariffName,
+      }
+    });
+
+  } catch (error: any) {
+    logger.error('Error processing payment creation log request', {
+      error: error.message,
+      stack: error.stack,
+    });
+
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
 });
 
 // Middleware для логирования

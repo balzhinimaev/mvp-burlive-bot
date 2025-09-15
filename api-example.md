@@ -142,3 +142,73 @@ curl -X POST http://localhost:3000/api/payment-log \
 📅 Регистрация: 15.01.2024 13:30 (МСК)
 💳 Платеж: 15.01.2024 14:45 (МСК)
 ```
+
+## Новый эндпоинт: Логирование создания платежа
+
+### POST /api/payment-creation-log
+
+Логирует момент, когда пользователь нажал на тариф и создался платеж (до фактической оплаты).
+
+**Аутентификация:** Bearer Token (API_SECRET_KEY)
+
+**Заголовки:**
+```
+Authorization: Bearer YOUR_API_SECRET_KEY
+Content-Type: application/json
+```
+
+**Тело запроса:**
+```json
+{
+  "userId": 123456789,
+  "username": "username",
+  "firstName": "Имя",
+  "lastName": "Фамилия",
+  "paymentId": "payment_123456",
+  "amount": 1000,
+  "currency": "RUB",
+  "tariffName": "Премиум на месяц",
+  "utm": {
+    "utm_source": "telegram",
+    "utm_medium": "bot",
+    "utm_campaign": "winter_sale"
+  },
+  "promoId": "PROMO123"
+}
+```
+
+**Ответ (успех):**
+```json
+{
+  "success": true,
+  "message": "Payment creation logged successfully",
+  "data": {
+    "userId": 123456789,
+    "paymentId": "payment_123456",
+    "amount": 1000,
+    "tariffName": "Премиум на месяц"
+  }
+}
+```
+
+**Ответ (ошибка):**
+```json
+{
+  "success": false,
+  "error": "Missing required fields: userId, paymentId, amount, currency"
+}
+```
+
+**Пример сообщения в канале:**
+```
+🛒 Создание платежа #payment_creation #new_payment
+
+👤 Пользователь: Иван Петров (@username)
+🆔 ID: 123456789
+💳 Платеж: payment_123456
+💰 Сумма: 1000 RUB
+📦 Тариф: Премиум на месяц
+📊 UTM: source: telegram, campaign: winter_sale
+🎫 Промо: PROMO123
+⏰ Время: 15.01.2024 14:30 (МСК)
+```

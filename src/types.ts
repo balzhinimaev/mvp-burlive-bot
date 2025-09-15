@@ -79,3 +79,30 @@ export interface PaymentLogRequest {
   utm?: UTMParams;
   promoId?: string;
 }
+
+export interface PaymentCreationLog {
+  userId: number;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  paymentId: string;
+  amount: number;
+  currency: string;
+  tariffName?: string;
+  timestamp: Date;
+  utm?: UTMParams;
+  promoId?: string;
+}
+
+export interface PaymentCreationLogRequest {
+  userId: number;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  paymentId: string;
+  amount: number;
+  currency: string;
+  tariffName?: string;
+  utm?: UTMParams;
+  promoId?: string;
+}
