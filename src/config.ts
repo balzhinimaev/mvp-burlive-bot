@@ -44,6 +44,8 @@ export const config: Config = {
   SENTRY_DSN: process.env.SENTRY_DSN,
   LOG_CHANNEL_ID: process.env.LOG_CHANNEL_ID,
   LOG_CHANNEL_ENABLED: getEnvBoolean('LOG_CHANNEL_ENABLED', true),
+  API_SECRET_KEY: process.env.API_SECRET_KEY,
+  PAYMENT_LOG_ENABLED: getEnvBoolean('PAYMENT_LOG_ENABLED', true),
 };
 
 // Validate required config

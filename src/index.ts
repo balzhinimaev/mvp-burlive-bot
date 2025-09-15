@@ -1,9 +1,11 @@
 import { Telegraf } from 'telegraf';
+import express from 'express';
 import { config } from './config';
 import { ApiService } from './api';
 import { parsePayload, createStartAppParam, createMiniAppLink, hasValidUtm, logger } from './utils';
-import { LeadData, UserStartLog } from './types';
+import { LeadData, UserStartLog, PaymentLog, PaymentLogRequest } from './types';
 import { ChannelLogger } from './channel-logger';
+import { authenticateApiKey, requirePaymentLogging } from './auth-middleware';
 
 // Используем any для упрощения типизации в данном примере
 type BotContext = any;
@@ -12,6 +14,110 @@ const bot = new Telegraf<BotContext>(config.BOT_TOKEN);
 
 // Инициализация канального логгера
 const channelLogger = new ChannelLogger(bot);
+
+// Инициализация Express сервера
+const app = express();
+app.use(express.json({ limit: '2mb' })); // безопаснее для больших апдейтов
+
+// Защищенный эндпоинт для логирования платежей
+app.post('/api/payment-log', authenticateApiKey, requirePaymentLogging, async (req, res) => {
+  try {
+    const paymentData: PaymentLogRequest = req.body;
+    
+    // Валидация обязательных полей
+    if (!paymentData.userId || !paymentData.paymentId || !paymentData.amount || !paymentData.currency || !paymentData.registrationTime || !paymentData.paymentTime) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: userId, paymentId, amount, currency, registrationTime, paymentTime'
+      });
+    }
+
+    // Парсинг дат
+    const registrationTime = new Date(paymentData.registrationTime);
+    const paymentTime = new Date(paymentData.paymentTime);
+    
+    // Валидация дат
+    if (isNaN(registrationTime.getTime()) || isNaN(paymentTime.getTime())) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid date format. Use ISO 8601 format'
+      });
+    }
+
+    // Вычисление времени до платежа
+    const timeToPayment = paymentTime.getTime() - registrationTime.getTime();
+    
+    if (timeToPayment < 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Payment time cannot be before registration time'
+      });
+    }
+
+    // Создание объекта для логирования
+    const paymentLog: PaymentLog = {
+      userId: paymentData.userId,
+      username: paymentData.username,
+      firstName: paymentData.firstName,
+      lastName: paymentData.lastName,
+      paymentId: paymentData.paymentId,
+      amount: paymentData.amount,
+      currency: paymentData.currency,
+      registrationTime,
+      paymentTime,
+      timeToPayment,
+      utm: paymentData.utm,
+      promoId: paymentData.promoId,
+    };
+
+    // Асинхронно отправляем лог в канал
+    channelLogger.logPayment(paymentLog).catch((error: any) => {
+      logger.error('Failed to log payment to channel', { 
+        userId: paymentData.userId, 
+        paymentId: paymentData.paymentId,
+        error: error.message 
+      });
+    });
+
+    logger.info('Payment log request processed', {
+      userId: paymentData.userId,
+      paymentId: paymentData.paymentId,
+      amount: paymentData.amount,
+      timeToPayment: timeToPayment,
+    });
+
+    return res.json({
+      success: true,
+      message: 'Payment logged successfully',
+      data: {
+        userId: paymentData.userId,
+        paymentId: paymentData.paymentId,
+        timeToPayment: timeToPayment,
+      }
+    });
+
+  } catch (error: any) {
+    logger.error('Error processing payment log request', {
+      error: error.message,
+      stack: error.stack,
+    });
+
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Bot is running',
+    timestamp: new Date().toISOString(),
+    paymentLoggingEnabled: config.PAYMENT_LOG_ENABLED,
+  });
+});
 
 // Middleware для логирования
 bot.use((ctx: BotContext, next: () => Promise<void>) => {
@@ -258,20 +364,53 @@ async function startBot() {
       if (!webhookUrl) {
         throw new Error('WEBHOOK_URL is required in production');
       }
-      
-      await bot.telegram.setWebhook(`${webhookUrl}${config.WEBHOOK_PATH}`);
-      logger.info('Webhook set', { url: `${webhookUrl}${config.WEBHOOK_PATH}` });
-      
-      // Запускаем сервер для webhook
-      bot.startWebhook(config.WEBHOOK_PATH, null, config.PORT);
+
+      // Нормализуем URL и path
+      const path = config.WEBHOOK_PATH.startsWith('/')
+        ? config.WEBHOOK_PATH
+        : `/${config.WEBHOOK_PATH}`;
+      const fullWebhookUrl = `${webhookUrl.replace(/\/+$/, '')}${path}`;
+
+      // (опционально) секрет для Bot API
+      const secretToken = process.env.TELEGRAM_SECRET_TOKEN;
+
+      // Подключаем middleware Telegraf для вебхука
+      app.use((bot as any).webhookCallback(path));
+
+      // (опционально) своя проверка секретного заголовка
+      if (secretToken) {
+        app.use(path, (req, res, next) => {
+          if (req.get('x-telegram-bot-api-secret-token') !== secretToken) {
+            return res.sendStatus(401);
+          }
+          return next();
+        });
+      }
+
+      // Стартуем сервер, а уже потом выставляем webhook
+      app.listen(config.PORT, async () => {
+        logger.info('Express server started', { port: config.PORT });
+        try {
+          await bot.telegram.setWebhook(fullWebhookUrl);
+          logger.info('Webhook set', { url: fullWebhookUrl });
+        } catch (err: any) {
+          logger.error('Failed to set webhook', { error: err.message });
+          process.exit(1);
+        }
+      });
+
       logger.info('Bot started with webhook', { port: config.PORT });
-      
+
     } else {
       // В разработке используем long polling
-      await bot.telegram.deleteWebhook();
+      await bot.telegram.deleteWebhook().catch(() => {});
       logger.info('Webhook removed for development');
-      
-      bot.launch();
+
+      app.listen(config.PORT, () => {
+        logger.info('Express server started', { port: config.PORT });
+      });
+
+      await bot.launch();
       logger.info('Bot started with long polling');
     }
 

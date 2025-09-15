@@ -32,6 +32,7 @@
    MINI_APP_URL=https://your-mini-app-domain.com/webapp
    LOG_CHANNEL_ID=your_channel_id
    WEBHOOK_URL=https://your-domain.com/bot-webhook
+   TELEGRAM_SECRET_TOKEN=your_secret_token_here
    ```
 
 ✅ **docker-compose.yml создается автоматически при деплое**
@@ -68,8 +69,23 @@ nginx -t && systemctl reload nginx
 - `VPS_USER` - пользователь SSH (root/ubuntu)  
 - `VPS_SSH_KEY` - приватный SSH ключ
 - `BOT_PORT` - **порт для бота (тот же что в .env файле)**
+- `TELEGRAM_SECRET_TOKEN` - **секретный токен для защиты webhook (опционально)**
 
-⚠️ **Важно:** Убедитесь что `BOT_PORT` в GitHub Secrets совпадает с `PORT` в `.env` файле на VPS!
+### Генерация TELEGRAM_SECRET_TOKEN
+
+Для генерации секретного токена используйте:
+```bash
+# Генерируем случайную строку (32 символа)
+openssl rand -hex 16
+
+# Или используйте Node.js
+node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"
+```
+
+⚠️ **Важно:** 
+- Убедитесь что `BOT_PORT` в GitHub Secrets совпадает с `PORT` в `.env` файле на VPS!
+- `TELEGRAM_SECRET_TOKEN` должен совпадать в GitHub Secrets и `.env` файле на VPS!
+- Секретный токен защищает webhook от несанкционированных запросов
 
 ## Деплой
 

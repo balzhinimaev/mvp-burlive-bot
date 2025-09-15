@@ -24,6 +24,8 @@ export interface Config {
   SENTRY_DSN?: string;
   LOG_CHANNEL_ID?: string;
   LOG_CHANNEL_ENABLED: boolean;
+  API_SECRET_KEY?: string;
+  PAYMENT_LOG_ENABLED: boolean;
 }
 
 export interface ApiResponse<T = any> {
@@ -47,4 +49,33 @@ export interface UserStartLog {
   promoId?: string;
   timestamp: Date;
   isFirstTime?: boolean;
+}
+
+export interface PaymentLog {
+  userId: number;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  paymentId: string;
+  amount: number;
+  currency: string;
+  registrationTime: Date;
+  paymentTime: Date;
+  timeToPayment: number; // in milliseconds
+  utm?: UTMParams;
+  promoId?: string;
+}
+
+export interface PaymentLogRequest {
+  userId: number;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  paymentId: string;
+  amount: number;
+  currency: string;
+  registrationTime: string; // ISO string
+  paymentTime: string; // ISO string
+  utm?: UTMParams;
+  promoId?: string;
 }
