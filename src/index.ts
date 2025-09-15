@@ -421,28 +421,6 @@ async function startBot() {
         logger.warn('Channel test failed, channel logging may not work');
       } else {
         logger.info('Channel test passed, logging enabled');
-        
-        // Тестируем логирование создания платежа
-        try {
-          const testPaymentCreation: PaymentCreationLog = {
-            userId: 999999999,
-            username: 'test_bot',
-            firstName: 'Test',
-            lastName: 'Bot',
-            paymentId: 'test_payment_creation_123',
-            amount: 100.00,
-            currency: 'RUB',
-            tariffName: 'Тестовый тариф',
-            timestamp: new Date(),
-            utm: { utm_source: 'test' },
-            promoId: 'TEST123',
-          };
-          
-          await channelLogger.logPaymentCreation(testPaymentCreation);
-          logger.info('Test payment creation log sent successfully');
-        } catch (error: any) {
-          logger.error('Test payment creation log failed', { error: error.message });
-        }
       }
     } else {
       logger.info('Channel logging disabled');

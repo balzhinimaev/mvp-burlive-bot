@@ -27,11 +27,11 @@
    BOT_USERNAME=your_bot_username
    PORT=8080
    API_SECRET_KEY=your_api_secret_key_here
+   LOG_CHANNEL_ID=your_channel_id
 
    # Опциональные параметры  
    API_BASE_URL=https://your-api-domain.com/api/v2
    MINI_APP_URL=https://your-mini-app-domain.com/webapp
-   LOG_CHANNEL_ID=your_channel_id
    WEBHOOK_URL=https://your-domain.com/bot-webhook
    TELEGRAM_SECRET_TOKEN=your_secret_token_here
    ```
@@ -71,6 +71,7 @@ nginx -t && systemctl reload nginx
 - `VPS_SSH_KEY` - приватный SSH ключ
 - `BOT_PORT` - **порт для бота (тот же что в .env файле)**
 - `API_SECRET_KEY` - **секретный ключ для API аутентификации (обязательно)**
+- `LOG_CHANNEL_ID` - **ID канала для логов (обязательно)**
 - `TELEGRAM_SECRET_TOKEN` - **секретный токен для защиты webhook (опционально)**
 
 ### Генерация секретных ключей
@@ -84,6 +85,13 @@ openssl rand -hex 16
 node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"
 ```
 
+**LOG_CHANNEL_ID (обязательно):**
+1. Создайте канал в Telegram
+2. Добавьте бота в канал как администратора
+3. Отправьте любое сообщение в канал
+4. Используйте бота @userinfobot для получения ID канала
+5. ID канала начинается с `-100` (например: `-1001234567890`)
+
 **TELEGRAM_SECRET_TOKEN (опционально):**
 ```bash
 # Генерируем случайную строку (32 символа)
@@ -96,9 +104,11 @@ node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"
 ⚠️ **Важно:** 
 - Убедитесь что `BOT_PORT` в GitHub Secrets совпадает с `PORT` в `.env` файле на VPS!
 - `API_SECRET_KEY` должен совпадать в GitHub Secrets и `.env` файле на VPS!
+- `LOG_CHANNEL_ID` должен совпадать в GitHub Secrets и `.env` файле на VPS!
 - `TELEGRAM_SECRET_TOKEN` должен совпадать в GitHub Secrets и `.env` файле на VPS!
 - API_SECRET_KEY защищает эндпоинт `/api/payment-log` от несанкционированных запросов
 - TELEGRAM_SECRET_TOKEN защищает webhook от несанкционированных запросов
+- LOG_CHANNEL_ID нужен для отправки логов в Telegram канал
 
 ## Деплой
 
