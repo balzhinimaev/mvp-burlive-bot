@@ -26,6 +26,7 @@
    BOT_TOKEN=your_bot_token_here
    BOT_USERNAME=your_bot_username
    PORT=8080
+   API_SECRET_KEY=your_api_secret_key_here
 
    # Опциональные параметры  
    API_BASE_URL=https://your-api-domain.com/api/v2
@@ -69,11 +70,21 @@ nginx -t && systemctl reload nginx
 - `VPS_USER` - пользователь SSH (root/ubuntu)  
 - `VPS_SSH_KEY` - приватный SSH ключ
 - `BOT_PORT` - **порт для бота (тот же что в .env файле)**
+- `API_SECRET_KEY` - **секретный ключ для API аутентификации (обязательно)**
 - `TELEGRAM_SECRET_TOKEN` - **секретный токен для защиты webhook (опционально)**
 
-### Генерация TELEGRAM_SECRET_TOKEN
+### Генерация секретных ключей
 
-Для генерации секретного токена используйте:
+**API_SECRET_KEY (обязательно):**
+```bash
+# Генерируем случайную строку (32 символа)
+openssl rand -hex 16
+
+# Или используйте Node.js
+node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"
+```
+
+**TELEGRAM_SECRET_TOKEN (опционально):**
 ```bash
 # Генерируем случайную строку (32 символа)
 openssl rand -hex 16
@@ -84,8 +95,10 @@ node -e "console.log(require('crypto').randomBytes(16).toString('hex'))"
 
 ⚠️ **Важно:** 
 - Убедитесь что `BOT_PORT` в GitHub Secrets совпадает с `PORT` в `.env` файле на VPS!
+- `API_SECRET_KEY` должен совпадать в GitHub Secrets и `.env` файле на VPS!
 - `TELEGRAM_SECRET_TOKEN` должен совпадать в GitHub Secrets и `.env` файле на VPS!
-- Секретный токен защищает webhook от несанкционированных запросов
+- API_SECRET_KEY защищает эндпоинт `/api/payment-log` от несанкционированных запросов
+- TELEGRAM_SECRET_TOKEN защищает webhook от несанкционированных запросов
 
 ## Деплой
 

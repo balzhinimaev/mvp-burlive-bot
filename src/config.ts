@@ -49,7 +49,7 @@ export const config: Config = {
 };
 
 // Validate required config
-const requiredVars = ['BOT_TOKEN', 'BOT_USERNAME', 'PORT'];
+const requiredVars = ['BOT_TOKEN', 'BOT_USERNAME', 'PORT', 'API_SECRET_KEY'];
 for (const varName of requiredVars) {
   if (!config[varName as keyof Config]) {
     throw new Error(`Missing required environment variable: ${varName}`);

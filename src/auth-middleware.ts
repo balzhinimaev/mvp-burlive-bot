@@ -6,10 +6,14 @@ import { logger } from './utils';
  * Middleware for API key authentication
  */
 export function authenticateApiKey(req: Request, res: Response, next: NextFunction): void {
-  // Skip authentication if API secret key is not configured
+  // Require API secret key for authentication
   if (!config.API_SECRET_KEY) {
-    logger.warn('API_SECRET_KEY not configured, skipping authentication');
-    return next();
+    logger.error('API_SECRET_KEY not configured, authentication required');
+    res.status(500).json({
+      success: false,
+      error: 'API authentication not configured',
+    });
+    return;
   }
 
   const authHeader = req.headers.authorization;
