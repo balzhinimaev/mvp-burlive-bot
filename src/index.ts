@@ -293,7 +293,7 @@ bot.start(async (ctx: BotContext) => {
     const welcomeMessage = 
       `Добро пожаловать в бот для изучения <b>английского языка</b>!\n\n` +
       `Изучайте Анлийский с помощью мини-уроков, озвучки и транслитерации. ` +
-      `20 фраз за 7 дней — первый урок бесплатно!`;
+      `20 фраз за 7 дней — первый урок бесплатно!\n\n Нажмите кнопку ниже, чтобы открыть приложение:`;
 
     // Log the exact keyboard payload before sending to help diagnose BUTTON_URL_INVALID
     logger.info('Sending welcome message with keyboard', {
