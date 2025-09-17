@@ -303,6 +303,7 @@ bot.start(async (ctx: BotContext) => {
 
     await ctx.reply(welcomeMessage, {
       reply_markup: keyboard,
+      parse_mode: 'HTML',
     });
     
     const processingTime = Date.now() - startTime;
