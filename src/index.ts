@@ -403,6 +403,234 @@ bot.use((ctx: BotContext, next: () => Promise<void>) => {
   return next();
 });
 
+// Обработка pre_checkout_query (обязательно для подтверждения оплаты)
+bot.on('pre_checkout_query', async (ctx: BotContext) => {
+  try {
+    const preCheckoutQuery = ctx.preCheckoutQuery;
+    const { id, from, currency, total_amount, invoice_payload } = preCheckoutQuery;
+    
+    logger.info('Received pre-checkout query', {
+      queryId: id,
+      userId: from.id,
+      username: from.username,
+      currency,
+      totalAmount: total_amount,
+      invoicePayload: invoice_payload
+    });
+    
+    // Здесь можно добавить дополнительные проверки:
+    // - Проверить валидность payload
+    // - Проверить доступность товара
+    // - Проверить лимиты пользователя и т.д.
+    
+    // Валидация валюты
+    if (currency !== 'XTR') {
+      logger.warn('Invalid currency in pre-checkout', {
+        queryId: id,
+        userId: from.id,
+        currency
+      });
+      
+      await ctx.answerPreCheckoutQuery(false, 'Неподдерживаемая валюта');
+      return;
+    }
+    
+    // Валидация суммы (минимум 1 звезда)
+    if (total_amount < 1) {
+      logger.warn('Invalid amount in pre-checkout', {
+        queryId: id,
+        userId: from.id,
+        totalAmount: total_amount
+      });
+      
+      await ctx.answerPreCheckoutQuery(false, 'Неверная сумма платежа');
+      return;
+    }
+    
+    // Подтверждаем платеж
+    await ctx.answerPreCheckoutQuery(true);
+    
+    logger.info('Pre-checkout query approved', {
+      queryId: id,
+      userId: from.id,
+      totalAmount: total_amount
+    });
+    
+  } catch (error: any) {
+    logger.error('Error processing pre-checkout query', {
+      error: error.message,
+      stack: error.stack,
+      queryId: ctx.preCheckoutQuery?.id,
+      userId: ctx.from?.id
+    });
+    
+    // Отклоняем платеж в случае ошибки
+    try {
+      await ctx.answerPreCheckoutQuery(false, 'Произошла техническая ошибка. Попробуйте позже.');
+    } catch (answerError: any) {
+      logger.error('Failed to answer pre-checkout query with error', {
+        error: answerError.message,
+        queryId: ctx.preCheckoutQuery?.id
+      });
+    }
+  }
+});
+
+// Обработка успешного платежа
+bot.on('successful_payment', async (ctx: BotContext) => {
+  try {
+    const payment = ctx.message.successful_payment;
+    const userId = ctx.from.id;
+    
+    logger.info('Received successful payment', {
+      userId,
+      username: ctx.from.username,
+      currency: payment.currency,
+      totalAmount: payment.total_amount,
+      invoicePayload: payment.invoice_payload,
+      telegramPaymentChargeId: payment.telegram_payment_charge_id,
+      providerPaymentChargeId: payment.provider_payment_charge_id
+    });
+    
+    // Парсим payload для получения информации о товаре
+    let productInfo = null;
+    try {
+      // Если payload содержит JSON
+      if (payment.invoice_payload.startsWith('{')) {
+        productInfo = JSON.parse(payment.invoice_payload);
+      }
+    } catch (parseError) {
+      logger.warn('Could not parse invoice payload as JSON', {
+        userId,
+        payload: payment.invoice_payload
+      });
+    }
+    
+    // Создаем объект для логирования платежа
+    const paymentLog: PaymentLog = {
+      userId,
+      username: ctx.from.username,
+      firstName: ctx.from.first_name,
+      lastName: ctx.from.last_name,
+      paymentId: payment.telegram_payment_charge_id,
+      amount: payment.total_amount,
+      currency: payment.currency,
+      registrationTime: new Date(), // Можно улучшить, сохранив время регистрации
+      paymentTime: new Date(),
+      timeToPayment: 0, // Можно улучшить, вычислив время от создания инвойса
+      utm: undefined, // Можно улучшить, сохранив UTM из payload
+      promoId: undefined, // Можно улучшить, сохранив promo из payload
+    };
+    
+    // Асинхронно логируем платеж в канал
+    channelLogger.logPayment(paymentLog).catch((error: any) => {
+      logger.error('Failed to log successful payment to channel', { 
+        userId,
+        paymentId: payment.telegram_payment_charge_id,
+        error: error.message 
+      });
+    });
+    
+    // Здесь добавьте свою бизнес-логику:
+    // - Активировать подписку пользователя
+    // - Добавить премиум-функции
+    // - Обновить базу данных
+    // - Отправить уведомление в другие системы
+    
+    // Например, если у вас есть API для активации подписки:
+    /*
+    try {
+      await ApiService.activateSubscription({
+        userId,
+        paymentId: payment.telegram_payment_charge_id,
+        amount: payment.total_amount,
+        productInfo
+      });
+    } catch (activationError) {
+      logger.error('Failed to activate subscription', {
+        userId,
+        paymentId: payment.telegram_payment_charge_id,
+        error: activationError.message
+      });
+      
+      // Можно отправить уведомление администратору
+      // или добавить в очередь для повторной обработки
+    }
+    */
+    
+    // Отправляем подтверждение пользователю
+    const confirmationMessage = 
+      `✅ <b>Платеж успешно выполнен!</b>\n\n` +
+      `💰 Сумма: ${payment.total_amount} ⭐️\n` +
+      `🆔 ID платежа: <code>${payment.telegram_payment_charge_id}</code>\n\n` +
+      `Спасибо за покупку! Ваш доступ активирован.\n\n` +
+      `🚀 Откройте приложение, чтобы воспользоваться новыми возможностями:`;
+    
+    await ctx.reply(confirmationMessage, {
+      parse_mode: 'HTML',
+      reply_markup: {
+        inline_keyboard: [[
+          {
+            text: '🚀 Открыть приложение',
+            web_app: { url: config.MINI_APP_URL }
+          }
+        ]]
+      }
+    });
+    
+    logger.info('Successfully processed payment', {
+      userId,
+      paymentId: payment.telegram_payment_charge_id,
+      amount: payment.total_amount
+    });
+    
+  } catch (error: any) {
+    logger.error('Error processing successful payment', {
+      error: error.message,
+      stack: error.stack,
+      userId: ctx.from?.id,
+      paymentId: ctx.message?.successful_payment?.telegram_payment_charge_id
+    });
+    
+    // Отправляем сообщение об ошибке пользователю
+    try {
+      await ctx.reply(
+        '⚠️ Платеж получен, но произошла ошибка при обработке.\n\n' +
+        'Обратитесь в поддержку с ID платежа: ' +
+        `<code>${ctx.message?.successful_payment?.telegram_payment_charge_id}</code>`,
+        { parse_mode: 'HTML' }
+      );
+    } catch (replyError: any) {
+      logger.error('Failed to send error message to user', {
+        error: replyError.message,
+        userId: ctx.from?.id
+      });
+    }
+  }
+});
+
+// Команда для поддержки по платежам (обязательна согласно требованиям Telegram)
+bot.on('text', async (ctx: BotContext) => {
+  if (ctx.message && 'text' in ctx.message && ctx.message.text === '/paysupport') {
+    const userId = ctx.from.id;
+    
+    logger.info('Processing /paysupport command', { userId });
+    
+    const supportMessage = 
+      `🛠 <b>Поддержка по платежам</b>\n\n` +
+      `По всем вопросам, связанным с платежами и возвратами, ` +
+      `обращайтесь к администратору: @frntdtev\n\n` +
+      `При обращении укажите:\n` +
+      `• ID платежа\n` +
+      `• Описание проблемы\n` +
+      `• Дату и время платежа`;
+
+    await ctx.reply(supportMessage, {
+      parse_mode: 'HTML'
+    });
+  }
+});
+
 // Обработчик команды /start
 bot.start(async (ctx: BotContext) => {
   const startTime = Date.now();
@@ -573,27 +801,47 @@ bot.help(async (ctx: BotContext) => {
   });
 });
 
-// Обработчик неизвестных команд
+// Обработчик сообщений (включая invoice)
 bot.on('message', async (ctx: BotContext) => {
-  
   const userId = ctx.from.id;
-  const messageText = 'text' in ctx.message ? ctx.message.text : 'non-text';
   
-  logger.info('Unknown message received', { userId, messageText });
+  // Проверяем, есть ли в сообщении информация об инвойсе
+  if ('invoice' in ctx.message) {
+    logger.info('Received invoice message', {
+      userId,
+      invoice: ctx.message.invoice
+    });
+    
+    // Здесь можно добавить дополнительную обработку инвойса
+    // Например, логирование или уведомления
+  }
   
-  await ctx.reply(
-    'Используйте /start для начала работы или /help для получения справки.',
-    {
-      reply_markup: {
-        inline_keyboard: [[
-          {
-            text: '🚀 Открыть приложение',
-            web_app: { url: config.MINI_APP_URL }
-          }
-        ]]
+  // Проверяем, является ли это текстовым сообщением
+  if ('text' in ctx.message) {
+    const messageText = ctx.message.text;
+    
+    logger.info('Unknown text message received', { userId, messageText });
+    
+    await ctx.reply(
+      'Используйте /start для начала работы или /help для получения справки.',
+      {
+        reply_markup: {
+          inline_keyboard: [[
+            {
+              text: '🚀 Открыть приложение',
+              web_app: { url: config.MINI_APP_URL }
+            }
+          ]]
+        }
       }
-    }
-  );
+    );
+  } else {
+    // Для не-текстовых сообщений
+    logger.info('Unknown non-text message received', { 
+      userId, 
+      messageType: Object.keys(ctx.message).join(', ')
+    });
+  }
 });
 
 // Обработка ошибок
@@ -604,6 +852,45 @@ bot.catch((err: any, ctx: BotContext) => {
     stack: err.stack,
   });
 });
+
+// Функция для создания возврата (опционально)
+export async function refundPayment(paymentChargeId: string, reason?: string): Promise<boolean> {
+  try {
+    const telegramApiUrl = `https://api.telegram.org/bot${config.BOT_TOKEN}/refundStarPayment`;
+    const response = await fetch(telegramApiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        telegram_payment_charge_id: paymentChargeId
+      })
+    });
+    
+    const result = await response.json() as { ok: boolean; description?: string };
+    
+    if (!result.ok) {
+      logger.error('Failed to refund payment', {
+        paymentChargeId,
+        error: result.description
+      });
+      return false;
+    }
+    
+    logger.info('Payment refunded successfully', {
+      paymentChargeId,
+      reason
+    });
+    
+    return true;
+  } catch (error: any) {
+    logger.error('Error refunding payment', {
+      paymentChargeId,
+      error: error.message
+    });
+    return false;
+  }
+}
 
 // Функция для запуска бота
 async function startBot() {
