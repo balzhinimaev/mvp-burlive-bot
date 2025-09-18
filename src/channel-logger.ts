@@ -1,5 +1,5 @@
 import { config } from './config';
-import { UserStartLog, PaymentLog, PaymentCreationLog, UTMParams } from './types';
+import { UserStartLog, PaymentLog, PaymentCreationLog, TelegramStarsInvoiceLog, UTMParams } from './types';
 import { logger } from './utils';
 
 // Используем any для упрощения типизации телеграм бота
@@ -368,6 +368,103 @@ export class ChannelLogger {
       });
       throw error;
     }
+  }
+
+  /**
+   * Логирование создания инвойса Telegram Stars
+   */
+  async logTelegramStarsInvoice(invoiceLog: TelegramStarsInvoiceLog): Promise<void> {
+    if (!this.isEnabled || !this.channelId) {
+      return;
+    }
+
+    try {
+      const message = this.formatTelegramStarsInvoiceMessage(invoiceLog);
+      
+      await this.bot.telegram.sendMessage(this.channelId, message, {
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+      });
+
+      logger.info('Telegram Stars invoice logged to channel', {
+        userId: invoiceLog.userId,
+        paymentId: invoiceLog.paymentId,
+        productName: invoiceLog.productName,
+        amount: invoiceLog.amount,
+        channelId: this.channelId,
+      });
+
+    } catch (error: any) {
+      logger.error('Failed to log Telegram Stars invoice to channel', {
+        userId: invoiceLog.userId,
+        paymentId: invoiceLog.paymentId,
+        channelId: this.channelId,
+        error: error.message,
+      });
+    }
+  }
+
+  /**
+   * Форматирование сообщения о создании инвойса Telegram Stars
+   */
+  private formatTelegramStarsInvoiceMessage(data: TelegramStarsInvoiceLog): string {
+    const { 
+      userId, 
+      username, 
+      firstName, 
+      lastName, 
+      paymentId, 
+      productName,
+      description,
+      amount, 
+      currency, 
+      invoiceLink,
+      isFlexible,
+      timestamp,
+      utm,
+      promoId 
+    } = data;
+    
+    // Форматирование имени пользователя
+    const userInfo = [];
+    if (firstName) userInfo.push(firstName);
+    if (lastName) userInfo.push(lastName);
+    const displayName = userInfo.length > 0 ? userInfo.join(' ') : 'Без имени';
+    const usernameText = username ? `@${username}` : 'без username';
+    
+    // Форматирование UTM параметров
+    const utmParts = [];
+    if (utm?.utm_source) utmParts.push(`source: ${utm.utm_source}`);
+    if (utm?.utm_campaign) utmParts.push(`campaign: ${utm.utm_campaign}`);
+    if (utm?.utm_medium) utmParts.push(`medium: ${utm.utm_medium}`);
+    if (utm?.utm_term) utmParts.push(`term: ${utm.utm_term}`);
+    if (utm?.utm_content) utmParts.push(`content: ${utm.utm_content}`);
+    
+    const utmText = utmParts.length > 0 ? utmParts.join(', ') : 'без UTM';
+    const promoText = promoId ? `\n🎫 <b>Промо:</b> ${promoId}` : '';
+    const descriptionText = description ? `\n📝 <b>Описание:</b> ${description}` : '';
+    const flexibleText = isFlexible ? '\n💡 <b>Гибкая цена:</b> включена' : '';
+    
+    // Форматирование времени
+    const timestampText = timestamp.toLocaleString('ru-RU', {
+      timeZone: 'Europe/Moscow',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    return `⭐ <b>Создан инвойс Telegram Stars</b> #telegram_stars #invoice_created
+
+👤 <b>Пользователь:</b> ${displayName} (${usernameText})
+🆔 <b>ID:</b> <code>${userId}</code>
+📦 <b>Товар:</b> ${productName}${descriptionText}
+💰 <b>Сумма:</b> ${amount} ${currency}${flexibleText}
+🆔 <b>Payment ID:</b> <code>${paymentId}</code>
+🔗 <b>Ссылка:</b> <a href="${invoiceLink}">Открыть инвойс</a>
+📊 <b>UTM:</b> ${utmText}${promoText}
+⏰ <b>Время:</b> ${timestampText} (МСК)`;
   }
 
   /**

@@ -106,3 +106,60 @@ export interface PaymentCreationLogRequest {
   utm?: UTMParams;
   promoId?: string;
 }
+
+// Telegram Stars Payment Types
+export interface TelegramStarsPaymentRequest {
+  userId: number;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  productName: string;
+  description?: string;
+  amount: number; // количество звезд
+  currency: 'XTR'; // Telegram Stars currency
+  payload?: string; // дополнительная информация
+  providerData?: string; // данные провайдера
+  photoUrl?: string; // URL изображения товара
+  photoSize?: number; // размер изображения
+  photoWidth?: number; // ширина изображения
+  photoHeight?: number; // высота изображения
+  needName?: boolean; // запрашивать имя
+  needPhoneNumber?: boolean; // запрашивать телефон
+  needEmail?: boolean; // запрашивать email
+  needShippingAddress?: boolean; // запрашивать адрес доставки
+  sendPhoneNumberToProvider?: boolean; // отправлять телефон провайдеру
+  sendEmailToProvider?: boolean; // отправлять email провайдеру
+  isFlexible?: boolean; // гибкая цена
+  utm?: UTMParams;
+  promoId?: string;
+}
+
+export interface TelegramStarsPaymentResponse {
+  success: boolean;
+  invoiceLink?: string; // ссылка для оплаты
+  error?: string;
+  data?: {
+    paymentId: string;
+    invoiceLink: string;
+    amount: number;
+    currency: string;
+    productName: string;
+  };
+}
+
+export interface TelegramStarsInvoiceLog {
+  userId: number;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  paymentId: string;
+  productName: string;
+  description?: string;
+  amount: number;
+  currency: string;
+  invoiceLink: string;
+  isFlexible: boolean;
+  timestamp: Date;
+  utm?: UTMParams;
+  promoId?: string;
+}

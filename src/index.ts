@@ -3,7 +3,7 @@ import express from 'express';
 import { config } from './config';
 import { ApiService } from './api';
 import { parsePayload, createStartAppParam, createMiniAppLink, hasValidUtm, logger } from './utils';
-import { LeadData, UserStartLog, PaymentLog, PaymentLogRequest, PaymentCreationLog, PaymentCreationLogRequest } from './types';
+import { LeadData, UserStartLog, PaymentLog, PaymentLogRequest, PaymentCreationLog, PaymentCreationLogRequest, TelegramStarsPaymentRequest, TelegramStarsPaymentResponse, TelegramStarsInvoiceLog } from './types';
 import { ChannelLogger } from './channel-logger';
 import { authenticateApiKey, requirePaymentLogging } from './auth-middleware';
 
@@ -98,6 +98,167 @@ app.post('/api/payment-log', authenticateApiKey, requirePaymentLogging, async (r
 
   } catch (error: any) {
     logger.error('Error processing payment log request', {
+      error: error.message,
+      stack: error.stack,
+    });
+
+    return res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// Эндпоинт для создания платежа через Telegram Stars
+app.post('/api/telegram-stars/payment', authenticateApiKey, async (req, res) => {
+  try {
+    const paymentData: TelegramStarsPaymentRequest = req.body;
+    
+    // Валидация обязательных полей
+    if (!paymentData.userId || !paymentData.productName || !paymentData.amount) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: userId, productName, amount'
+      });
+    }
+
+    // Валидация валюты (должна быть XTR для Telegram Stars)
+    if (paymentData.currency && paymentData.currency !== 'XTR') {
+      return res.status(400).json({
+        success: false,
+        error: 'Currency must be XTR for Telegram Stars'
+      });
+    }
+
+    // Валидация количества звезд (должно быть положительным числом)
+    if (paymentData.amount <= 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Amount must be a positive number'
+      });
+    }
+
+    // Генерируем уникальный ID платежа
+    const paymentId = `stars_${Date.now()}_${paymentData.userId}`;
+    
+    // Подготавливаем данные для создания инвойса
+    const invoiceData = {
+      title: paymentData.productName,
+      description: paymentData.description || `Покупка: ${paymentData.productName}`,
+      payload: paymentData.payload || paymentId,
+      provider_token: '', // Для Telegram Stars не нужен
+      currency: 'XTR',
+      prices: [{
+        label: paymentData.productName,
+        amount: paymentData.amount * 100 // Telegram API ожидает сумму в копейках/центах
+      }],
+      max_tip_amount: paymentData.isFlexible ? paymentData.amount * 100 : undefined,
+      suggested_tip_amounts: paymentData.isFlexible ? [paymentData.amount * 50, paymentData.amount * 100, paymentData.amount * 150] : undefined,
+      provider_data: paymentData.providerData,
+      photo_url: paymentData.photoUrl,
+      photo_size: paymentData.photoSize,
+      photo_width: paymentData.photoWidth,
+      photo_height: paymentData.photoHeight,
+      need_name: paymentData.needName || false,
+      need_phone_number: paymentData.needPhoneNumber || false,
+      need_email: paymentData.needEmail || false,
+      need_shipping_address: paymentData.needShippingAddress || false,
+      send_phone_number_to_provider: paymentData.sendPhoneNumberToProvider || false,
+      send_email_to_provider: paymentData.sendEmailToProvider || false,
+      is_flexible: paymentData.isFlexible || false
+    };
+
+    // Создаем инвойс через Telegram Bot API
+    let invoiceLink: string;
+    try {
+      // Используем прямой HTTP запрос к Telegram Bot API
+      const telegramApiUrl = `https://api.telegram.org/bot${config.BOT_TOKEN}/createInvoiceLink`;
+      const response = await fetch(telegramApiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(invoiceData)
+      });
+      
+      const result = await response.json() as { ok: boolean; result?: string; description?: string };
+      
+      if (!result.ok) {
+        throw new Error(result.description || 'Failed to create invoice');
+      }
+      
+      if (!result.result) {
+        throw new Error('No invoice link received from Telegram API');
+      }
+      
+      invoiceLink = result.result;
+    } catch (error: any) {
+      logger.error('Failed to create Telegram Stars invoice', {
+        userId: paymentData.userId,
+        productName: paymentData.productName,
+        amount: paymentData.amount,
+        error: error.message
+      });
+      
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to create payment invoice'
+      });
+    }
+
+    // Логируем создание платежа
+    logger.info('Telegram Stars payment created', {
+      userId: paymentData.userId,
+      paymentId,
+      productName: paymentData.productName,
+      amount: paymentData.amount,
+      invoiceLink
+    });
+
+    // Логируем создание инвойса в канал
+    const invoiceLog: TelegramStarsInvoiceLog = {
+      userId: paymentData.userId,
+      username: paymentData.username,
+      firstName: paymentData.firstName,
+      lastName: paymentData.lastName,
+      paymentId,
+      productName: paymentData.productName,
+      description: paymentData.description,
+      amount: paymentData.amount,
+      currency: 'XTR',
+      invoiceLink,
+      isFlexible: paymentData.isFlexible || false,
+      timestamp: new Date(),
+      utm: paymentData.utm,
+      promoId: paymentData.promoId,
+    };
+    
+    // Асинхронно отправляем лог в канал
+    channelLogger.logTelegramStarsInvoice(invoiceLog).catch((error: any) => {
+      logger.error('Failed to log Telegram Stars invoice to channel', { 
+        userId: paymentData.userId, 
+        paymentId,
+        error: error.message 
+      });
+    });
+
+    // Отправляем ответ
+    const response: TelegramStarsPaymentResponse = {
+      success: true,
+      invoiceLink,
+      data: {
+        paymentId,
+        invoiceLink,
+        amount: paymentData.amount,
+        currency: 'XTR',
+        productName: paymentData.productName
+      }
+    };
+
+    return res.json(response);
+
+  } catch (error: any) {
+    logger.error('Error processing Telegram Stars payment request', {
       error: error.message,
       stack: error.stack,
     });
