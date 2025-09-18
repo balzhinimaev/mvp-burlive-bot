@@ -610,7 +610,7 @@ bot.on('successful_payment', async (ctx: BotContext) => {
 });
 
 // Команда для поддержки по платежам (обязательна согласно требованиям Telegram)
-bot.on('text', async (ctx: BotContext) => {
+bot.use(async (ctx: BotContext, next: () => Promise<void>) => {
   if (ctx.message && 'text' in ctx.message && ctx.message.text === '/paysupport') {
     const userId = ctx.from.id;
     
@@ -628,6 +628,9 @@ bot.on('text', async (ctx: BotContext) => {
     await ctx.reply(supportMessage, {
       parse_mode: 'HTML'
     });
+  } else {
+    // Передаем управление дальше для других команд
+    return next();
   }
 });
 
