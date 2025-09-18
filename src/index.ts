@@ -110,6 +110,7 @@ app.post('/api/payment-log', authenticateApiKey, requirePaymentLogging, async (r
 });
 
 // Эндпоинт для создания платежа через Telegram Stars
+// Эндпоинт для создания платежа через Telegram Stars
 app.post('/api/telegram-stars/payment', authenticateApiKey, async (req, res) => {
   try {
     // Логируем входящий запрос для отладки
@@ -155,7 +156,7 @@ app.post('/api/telegram-stars/payment', authenticateApiKey, async (req, res) => 
     const paymentId = `stars_${Date.now()}_${paymentData.userId}`;
     
     // Подготавливаем данные для создания инвойса
-    const baseAmount = paymentData.amount * 100; // Telegram API ожидает сумму в копейках/центах
+    // ВАЖНО: для Telegram Stars НЕ используем baseAmount * 100!
     const invoiceData: any = {
       title: paymentData.productName,
       description: paymentData.description || `Покупка: ${paymentData.productName}`,
@@ -164,14 +165,19 @@ app.post('/api/telegram-stars/payment', authenticateApiKey, async (req, res) => 
       currency: 'XTR',
       prices: [{
         label: paymentData.productName,
-        amount: baseAmount
-      }]
+        amount: paymentData.amount // Прямое значение без умножения на 100
+      }],
+      // Убираем все поля, которые не поддерживаются для Stars
+      need_name: false,
+      need_phone_number: false,
+      need_email: false,
+      need_shipping_address: false,
+      send_phone_number_to_provider: false,
+      send_email_to_provider: false,
+      is_flexible: false // Stars не поддерживают гибкие цены
     };
 
-    // Добавляем опциональные поля только если они заданы
-    if (paymentData.providerData) {
-      invoiceData.provider_data = paymentData.providerData;
-    }
+    // Добавляем только поддерживаемые опциональные поля
     if (paymentData.photoUrl) {
       invoiceData.photo_url = paymentData.photoUrl;
     }
@@ -184,33 +190,9 @@ app.post('/api/telegram-stars/payment', authenticateApiKey, async (req, res) => 
     if (paymentData.photoHeight) {
       invoiceData.photo_height = paymentData.photoHeight;
     }
-    if (paymentData.needName) {
-      invoiceData.need_name = paymentData.needName;
-    }
-    if (paymentData.needPhoneNumber) {
-      invoiceData.need_phone_number = paymentData.needPhoneNumber;
-    }
-    if (paymentData.needEmail) {
-      invoiceData.need_email = paymentData.needEmail;
-    }
-    if (paymentData.needShippingAddress) {
-      invoiceData.need_shipping_address = paymentData.needShippingAddress;
-    }
-    if (paymentData.sendPhoneNumberToProvider) {
-      invoiceData.send_phone_number_to_provider = paymentData.sendPhoneNumberToProvider;
-    }
-    if (paymentData.sendEmailToProvider) {
-      invoiceData.send_email_to_provider = paymentData.sendEmailToProvider;
-    }
-    if (paymentData.isFlexible) {
-      invoiceData.is_flexible = true;
-      invoiceData.max_tip_amount = baseAmount * 2; // Максимум в 2 раза больше базовой суммы
-      invoiceData.suggested_tip_amounts = [
-        Math.floor(baseAmount * 0.5), // 50% от базовой суммы
-        baseAmount, // 100% от базовой суммы
-        Math.floor(baseAmount * 1.5)  // 150% от базовой суммы
-      ];
-    }
+
+    // НЕ добавляем поля для гибких цен и чаевых - Stars их не поддерживают
+    // НЕ добавляем provider_data - не нужен для Stars
 
     // Создаем инвойс через Telegram Bot API
     let invoiceLink: string;
@@ -236,6 +218,11 @@ app.post('/api/telegram-stars/payment', authenticateApiKey, async (req, res) => 
       const result = await response.json() as { ok: boolean; result?: string; description?: string };
       
       if (!result.ok) {
+        // Логируем детали ошибки
+        logger.error('Telegram API error details', {
+          error: result.description,
+          invoiceData: invoiceData
+        });
         throw new Error(result.description || 'Failed to create invoice');
       }
       
@@ -254,7 +241,8 @@ app.post('/api/telegram-stars/payment', authenticateApiKey, async (req, res) => 
       
       return res.status(500).json({
         success: false,
-        error: 'Failed to create payment invoice'
+        error: 'Failed to create payment invoice',
+        details: error.message
       });
     }
 
@@ -279,7 +267,7 @@ app.post('/api/telegram-stars/payment', authenticateApiKey, async (req, res) => 
       amount: paymentData.amount,
       currency: 'XTR',
       invoiceLink,
-      isFlexible: paymentData.isFlexible || false,
+      isFlexible: false, // Всегда false для Stars
       timestamp: new Date(),
       utm: paymentData.utm,
       promoId: paymentData.promoId,
