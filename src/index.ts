@@ -112,10 +112,23 @@ app.post('/api/payment-log', authenticateApiKey, requirePaymentLogging, async (r
 // Эндпоинт для создания платежа через Telegram Stars
 app.post('/api/telegram-stars/payment', authenticateApiKey, async (req, res) => {
   try {
+    // Логируем входящий запрос для отладки
+    logger.info('Received Telegram Stars payment request', {
+      body: req.body,
+      headers: req.headers
+    });
+
     const paymentData: TelegramStarsPaymentRequest = req.body;
     
     // Валидация обязательных полей
-    if (!paymentData.userId || !paymentData.productName || !paymentData.amount) {
+    if (!paymentData || !paymentData.userId || !paymentData.productName || !paymentData.amount) {
+      logger.warn('Missing required fields in Telegram Stars payment request', {
+        hasPaymentData: !!paymentData,
+        userId: paymentData?.userId,
+        productName: paymentData?.productName,
+        amount: paymentData?.amount
+      });
+      
       return res.status(400).json({
         success: false,
         error: 'Missing required fields: userId, productName, amount'
@@ -142,7 +155,8 @@ app.post('/api/telegram-stars/payment', authenticateApiKey, async (req, res) => 
     const paymentId = `stars_${Date.now()}_${paymentData.userId}`;
     
     // Подготавливаем данные для создания инвойса
-    const invoiceData = {
+    const baseAmount = paymentData.amount * 100; // Telegram API ожидает сумму в копейках/центах
+    const invoiceData: any = {
       title: paymentData.productName,
       description: paymentData.description || `Покупка: ${paymentData.productName}`,
       payload: paymentData.payload || paymentId,
@@ -150,27 +164,65 @@ app.post('/api/telegram-stars/payment', authenticateApiKey, async (req, res) => 
       currency: 'XTR',
       prices: [{
         label: paymentData.productName,
-        amount: paymentData.amount * 100 // Telegram API ожидает сумму в копейках/центах
-      }],
-      max_tip_amount: paymentData.isFlexible ? paymentData.amount * 100 : undefined,
-      suggested_tip_amounts: paymentData.isFlexible ? [paymentData.amount * 50, paymentData.amount * 100, paymentData.amount * 150] : undefined,
-      provider_data: paymentData.providerData,
-      photo_url: paymentData.photoUrl,
-      photo_size: paymentData.photoSize,
-      photo_width: paymentData.photoWidth,
-      photo_height: paymentData.photoHeight,
-      need_name: paymentData.needName || false,
-      need_phone_number: paymentData.needPhoneNumber || false,
-      need_email: paymentData.needEmail || false,
-      need_shipping_address: paymentData.needShippingAddress || false,
-      send_phone_number_to_provider: paymentData.sendPhoneNumberToProvider || false,
-      send_email_to_provider: paymentData.sendEmailToProvider || false,
-      is_flexible: paymentData.isFlexible || false
+        amount: baseAmount
+      }]
     };
+
+    // Добавляем опциональные поля только если они заданы
+    if (paymentData.providerData) {
+      invoiceData.provider_data = paymentData.providerData;
+    }
+    if (paymentData.photoUrl) {
+      invoiceData.photo_url = paymentData.photoUrl;
+    }
+    if (paymentData.photoSize) {
+      invoiceData.photo_size = paymentData.photoSize;
+    }
+    if (paymentData.photoWidth) {
+      invoiceData.photo_width = paymentData.photoWidth;
+    }
+    if (paymentData.photoHeight) {
+      invoiceData.photo_height = paymentData.photoHeight;
+    }
+    if (paymentData.needName) {
+      invoiceData.need_name = paymentData.needName;
+    }
+    if (paymentData.needPhoneNumber) {
+      invoiceData.need_phone_number = paymentData.needPhoneNumber;
+    }
+    if (paymentData.needEmail) {
+      invoiceData.need_email = paymentData.needEmail;
+    }
+    if (paymentData.needShippingAddress) {
+      invoiceData.need_shipping_address = paymentData.needShippingAddress;
+    }
+    if (paymentData.sendPhoneNumberToProvider) {
+      invoiceData.send_phone_number_to_provider = paymentData.sendPhoneNumberToProvider;
+    }
+    if (paymentData.sendEmailToProvider) {
+      invoiceData.send_email_to_provider = paymentData.sendEmailToProvider;
+    }
+    if (paymentData.isFlexible) {
+      invoiceData.is_flexible = true;
+      invoiceData.max_tip_amount = baseAmount * 2; // Максимум в 2 раза больше базовой суммы
+      invoiceData.suggested_tip_amounts = [
+        Math.floor(baseAmount * 0.5), // 50% от базовой суммы
+        baseAmount, // 100% от базовой суммы
+        Math.floor(baseAmount * 1.5)  // 150% от базовой суммы
+      ];
+    }
 
     // Создаем инвойс через Telegram Bot API
     let invoiceLink: string;
     try {
+      // Логируем данные инвойса для отладки
+      logger.info('Creating Telegram Stars invoice', {
+        userId: paymentData.userId,
+        productName: paymentData.productName,
+        amount: paymentData.amount,
+        invoiceData: invoiceData
+      });
+
       // Используем прямой HTTP запрос к Telegram Bot API
       const telegramApiUrl = `https://api.telegram.org/bot${config.BOT_TOKEN}/createInvoiceLink`;
       const response = await fetch(telegramApiUrl, {
