@@ -109,7 +109,7 @@ export class ChannelLogger {
   }
 
   /**
-   * Проверка доступности канала
+   * Проверка доступности канала (без отправки сообщения)
    */
   async testChannel(): Promise<boolean> {
     if (!this.channelId) {
@@ -117,9 +117,9 @@ export class ChannelLogger {
     }
 
     try {
-      await this.bot.telegram.sendMessage(this.channelId, '🧪 Тест подключения к каналу логов', {
-        disable_notification: true,
-      });
+      // Проверяем доступ к каналу через getChat вместо отправки сообщения
+      // Это не спамит тестовыми сообщениями при каждом перезапуске
+      await this.bot.telegram.getChat(this.channelId);
       return true;
     } catch (error: any) {
       logger.error('Channel test failed', {

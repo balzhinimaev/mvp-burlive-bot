@@ -950,12 +950,35 @@ async function startBot() {
       // Стартуем сервер, а уже потом выставляем webhook
       app.listen(config.PORT, async () => {
         logger.info('Express server started', { port: config.PORT });
-        try {
-          await bot.telegram.setWebhook(fullWebhookUrl);
-          logger.info('Webhook set', { url: fullWebhookUrl });
-        } catch (err: any) {
-          logger.error('Failed to set webhook', { error: err.message });
-          process.exit(1);
+        
+        // Пытаемся установить webhook с ретраями
+        const setWebhookWithRetry = async (retries = 5, delay = 10000): Promise<boolean> => {
+          for (let attempt = 1; attempt <= retries; attempt++) {
+            try {
+              await bot.telegram.setWebhook(fullWebhookUrl);
+              logger.info('Webhook set successfully', { url: fullWebhookUrl, attempt });
+              return true;
+            } catch (err: any) {
+              logger.error('Failed to set webhook', { 
+                error: err.message, 
+                attempt, 
+                maxRetries: retries,
+                nextRetryIn: attempt < retries ? `${delay/1000}s` : 'no more retries'
+              });
+              
+              if (attempt < retries) {
+                await new Promise(resolve => setTimeout(resolve, delay));
+              }
+            }
+          }
+          return false;
+        };
+        
+        const webhookSet = await setWebhookWithRetry();
+        if (!webhookSet) {
+          logger.error('Failed to set webhook after all retries. Bot will continue running but may not receive updates.');
+          // НЕ вызываем process.exit(1), чтобы бот продолжал работать
+          // и можно было исправить проблему без перезапуска
         }
       });
 
