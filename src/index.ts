@@ -79,11 +79,33 @@ app.post('/bot-api/payment-log', authenticateApiKey, requirePaymentLogging, asyn
       });
     });
 
+    // Отправляем уведомление пользователю в Telegram
+    const tariffName = paymentData.tariffName || 'ваша подписка';
+    const notificationMessage = 
+      `✅ Платеж успешно обработан!\n\n` +
+      `Ваша подписка '${tariffName}' активирована.\n\n` +
+      `🆔 ID платежа: <code>${paymentData.paymentId}</code>\n` +
+      `💰 Сумма: ${paymentData.amount} ${paymentData.currency}`;
+
+    // Асинхронно отправляем уведомление, не блокируем ответ API
+    bot.telegram.sendMessage(paymentData.userId, notificationMessage, {
+      parse_mode: 'HTML',
+    }).catch((error: any) => {
+      logger.error('Failed to send payment notification to user', {
+        userId: paymentData.userId,
+        paymentId: paymentData.paymentId,
+        error: error.message,
+      });
+      // Не блокируем успешный ответ API, даже если уведомление не отправилось
+    });
+
     logger.info('Payment log request processed', {
       userId: paymentData.userId,
       paymentId: paymentData.paymentId,
       amount: paymentData.amount,
       timeToPayment: timeToPayment,
+      product: paymentData.product,
+      tariffName: paymentData.tariffName,
     });
 
     return res.json({

@@ -12,6 +12,7 @@ declare module 'telegraf' {
     telegram: {
       setWebhook(url: string): Promise<void>;
       deleteWebhook(): Promise<void>;
+      sendMessage(chatId: number | string, text: string, options?: any): Promise<any>;
     };
   }
 }

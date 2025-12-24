@@ -76,6 +76,8 @@ export interface PaymentLogRequest {
   currency: string;
   registrationTime: string; // ISO string
   paymentTime: string; // ISO string
+  product?: string;
+  tariffName?: string;
   utm?: UTMParams;
   promoId?: string;
 }
