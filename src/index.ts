@@ -346,6 +346,13 @@ app.post('/bot-api/payment-creation-log', authenticateApiKey, requirePaymentLogg
   try {
     const paymentCreationData: PaymentCreationLogRequest = req.body;
     
+    // Логируем входящие данные
+    logger.info('Received payment creation log request', {
+      body: paymentCreationData,
+      userId: paymentCreationData.userId,
+      paymentId: paymentCreationData.paymentId,
+    });
+    
     // Валидация обязательных полей
     if (!paymentCreationData.userId || !paymentCreationData.paymentId || !paymentCreationData.amount || !paymentCreationData.currency) {
       return res.status(400).json({
