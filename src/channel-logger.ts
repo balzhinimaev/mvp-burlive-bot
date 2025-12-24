@@ -193,6 +193,8 @@ export class ChannelLogger {
       registrationTime, 
       paymentTime, 
       timeToPayment,
+      product,
+      tariffName,
       utm,
       promoId 
     } = data;
@@ -217,6 +219,8 @@ export class ChannelLogger {
     
     const utmText = utmParts.length > 0 ? utmParts.join(', ') : 'без UTM';
     const promoText = promoId ? `\n🎫 <b>Промо:</b> ${promoId}` : '';
+    const tariffText = tariffName ? `\n📦 <b>Тариф:</b> ${tariffName}` : '';
+    const productText = product ? ` (${product})` : '';
     
     // Форматирование времени
     const registrationTimeText = registrationTime.toLocaleString('ru-RU', {
@@ -241,7 +245,7 @@ export class ChannelLogger {
 
 👤 <b>Пользователь:</b> ${displayName} (${usernameText})
 🆔 <b>ID:</b> <code>${userId}</code>
-💳 <b>Платеж:</b> ${amount} ${currency.toUpperCase()}
+💳 <b>Сумма:</b> ${amount} ${currency.toUpperCase()}${tariffText}${productText}
 🆔 <b>Payment ID:</b> <code>${paymentId}</code>
 ⏱️ <b>Время до платежа:</b> ${timeToPaymentText}
 📊 <b>UTM:</b> ${utmText}${promoText}

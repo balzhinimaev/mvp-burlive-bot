@@ -66,6 +66,8 @@ app.post('/bot-api/payment-log', authenticateApiKey, requirePaymentLogging, asyn
       registrationTime,
       paymentTime,
       timeToPayment,
+      product: paymentData.product,
+      tariffName: paymentData.tariffName,
       utm: paymentData.utm,
       promoId: paymentData.promoId,
     };

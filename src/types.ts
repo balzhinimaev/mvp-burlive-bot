@@ -62,6 +62,8 @@ export interface PaymentLog {
   registrationTime: Date;
   paymentTime: Date;
   timeToPayment: number; // in milliseconds
+  product?: string;
+  tariffName?: string;
   utm?: UTMParams;
   promoId?: string;
 }
