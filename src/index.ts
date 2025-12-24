@@ -20,7 +20,7 @@ const app = express();
 app.use(express.json({ limit: '2mb' })); // безопаснее для больших апдейтов
 
 // Защищенный эндпоинт для логирования платежей
-app.post('/api/payment-log', authenticateApiKey, requirePaymentLogging, async (req, res) => {
+app.post('/bot-api/payment-log', authenticateApiKey, requirePaymentLogging, async (req, res) => {
   try {
     const paymentData: PaymentLogRequest = req.body;
     
@@ -110,8 +110,7 @@ app.post('/api/payment-log', authenticateApiKey, requirePaymentLogging, async (r
 });
 
 // Эндпоинт для создания платежа через Telegram Stars
-// Эндпоинт для создания платежа через Telegram Stars
-app.post('/api/telegram-stars/payment', authenticateApiKey, async (req, res) => {
+app.post('/bot-api/telegram-stars/payment', authenticateApiKey, async (req, res) => {
   try {
     // Логируем входящий запрос для отладки
     logger.info('Received Telegram Stars payment request', {
@@ -311,7 +310,7 @@ app.post('/api/telegram-stars/payment', authenticateApiKey, async (req, res) => 
 });
 
 // Health check endpoint
-app.get('/api/health', (req, res) => {
+app.get('/bot-api/health', (req, res) => {
   res.json({
     success: true,
     message: 'Bot is running',
@@ -321,7 +320,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Эндпоинт для логирования создания платежа (когда пользователь нажал на тариф)
-app.post('/api/payment-creation-log', authenticateApiKey, requirePaymentLogging, async (req, res) => {
+app.post('/bot-api/payment-creation-log', authenticateApiKey, requirePaymentLogging, async (req, res) => {
   try {
     const paymentCreationData: PaymentCreationLogRequest = req.body;
     
