@@ -354,6 +354,44 @@ app.post('/bot-api/payment-creation-log', authenticateApiKey, requirePaymentLogg
       });
     }
 
+    // Валидация новых обязательных полей
+    if (!paymentCreationData.firstName || !paymentCreationData.lastName || !paymentCreationData.tariffName || !paymentCreationData.product || !paymentCreationData.paymentCreationDate) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: firstName, lastName, tariffName, product, paymentCreationDate'
+      });
+    }
+
+    // Валидация типа продукта
+    const validProducts = ['monthly', 'quarterly', 'yearly'];
+    if (!validProducts.includes(paymentCreationData.product)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid product. Must be one of: ${validProducts.join(', ')}`
+      });
+    }
+
+    // Парсинг дат
+    const paymentCreationDate = new Date(paymentCreationData.paymentCreationDate);
+    let userRegistrationDate: Date | undefined;
+    
+    if (paymentCreationData.userRegistrationDate) {
+      userRegistrationDate = new Date(paymentCreationData.userRegistrationDate);
+      if (isNaN(userRegistrationDate.getTime())) {
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid userRegistrationDate format. Use ISO 8601 format'
+        });
+      }
+    }
+
+    if (isNaN(paymentCreationDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid paymentCreationDate format. Use ISO 8601 format'
+      });
+    }
+
     // Создание объекта для логирования
     const paymentCreationLog: PaymentCreationLog = {
       userId: paymentCreationData.userId,
@@ -364,7 +402,10 @@ app.post('/bot-api/payment-creation-log', authenticateApiKey, requirePaymentLogg
       amount: paymentCreationData.amount,
       currency: paymentCreationData.currency,
       tariffName: paymentCreationData.tariffName,
-      timestamp: new Date(),
+      product: paymentCreationData.product,
+      timestamp: paymentCreationDate, // Используем paymentCreationDate как timestamp
+      paymentCreationDate: paymentCreationDate,
+      userRegistrationDate: userRegistrationDate,
       utm: paymentCreationData.utm,
       promoId: paymentCreationData.promoId,
     };
@@ -383,6 +424,9 @@ app.post('/bot-api/payment-creation-log', authenticateApiKey, requirePaymentLogg
       paymentId: paymentCreationData.paymentId,
       amount: paymentCreationData.amount,
       tariffName: paymentCreationData.tariffName,
+      product: paymentCreationData.product,
+      paymentCreationDate: paymentCreationDate.toISOString(),
+      userRegistrationDate: userRegistrationDate?.toISOString(),
     });
 
     return res.json({
@@ -393,6 +437,7 @@ app.post('/bot-api/payment-creation-log', authenticateApiKey, requirePaymentLogg
         paymentId: paymentCreationData.paymentId,
         amount: paymentCreationData.amount,
         tariffName: paymentCreationData.tariffName,
+        product: paymentCreationData.product,
       }
     });
 

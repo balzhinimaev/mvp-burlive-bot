@@ -91,21 +91,27 @@ export interface PaymentCreationLog {
   amount: number;
   currency: string;
   tariffName?: string;
+  product?: 'monthly' | 'quarterly' | 'yearly';
   timestamp: Date;
-  utm?: UTMParams;
+  userRegistrationDate?: Date;
+  paymentCreationDate?: Date;
+  utm?: UTMParams | Record<string, string>;
   promoId?: string;
 }
 
 export interface PaymentCreationLogRequest {
   userId: number;
-  username?: string;
-  firstName?: string;
-  lastName?: string;
+  username?: string; // Опционально, передается из user.username
+  firstName: string; // Обязательно
+  lastName: string; // Обязательно
   paymentId: string;
   amount: number;
   currency: string;
-  tariffName?: string;
-  utm?: UTMParams;
+  tariffName: string; // Обязательно
+  product: 'monthly' | 'quarterly' | 'yearly'; // Обязательно
+  paymentCreationDate: string; // ISO string, обязательно
+  userRegistrationDate?: string; // ISO string, опционально, из user.createdAt
+  utm?: Record<string, string>; // Реальные UTM метки из user.firstUtm или user.lastUtm
   promoId?: string;
 }
 
