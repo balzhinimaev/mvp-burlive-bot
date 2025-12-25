@@ -24,6 +24,13 @@ app.post('/bot-api/payment-log', authenticateApiKey, requirePaymentLogging, asyn
   try {
     const paymentData: PaymentLogRequest = req.body;
     
+    // Логируем входящие данные
+    logger.info('Received payment log request', {
+      body: paymentData,
+      userId: paymentData.userId,
+      paymentId: paymentData.paymentId,
+    });
+    
     // Валидация обязательных полей
     if (!paymentData.userId || !paymentData.paymentId || !paymentData.amount || !paymentData.currency || !paymentData.registrationTime || !paymentData.paymentTime) {
       return res.status(400).json({
